@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Four-Arm Olfactometer Timer"
+version: "1.0"
+date-released: 2026-11-13
+url: "https://github.com/Viveksreesai/Olfactometer-timer"
+repository-code: "https://github.com/Viveksreesai/Olfactometer-timer"
+type: software
+keywords:
+  - olfactometer
+  - insect behaviour
+  - olfactory bioassay
+  - chemical ecology
+authors:
+  - family-names: "G"
+    given-names: "Vivek Sree Sai"
+    affiliation: "ICAR-Indian Institute of Horticultural Research, Bengaluru"
