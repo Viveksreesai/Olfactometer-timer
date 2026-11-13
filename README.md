@@ -64,7 +64,7 @@ A simple, free, browser-based timer for **single-choice four-arm olfactometer bi
 
 If you use this tool in your research, please cite it as:
 
-> Vivek (2026). *Four-Arm Olfactometer Timer* [Software]. GitHub. https://github.com/Viveksreesai/Olfactometer-timer
+> Vivek Sree Sai G (2026). *Four-Arm Olfactometer Timer* [Software]. GitHub. https://github.com/Viveksreesai/Olfactometer-timer
 
 ## Author
 
