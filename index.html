@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four-Arm Olfactometer Timer</title>
+<style>
+  :root{--bg:#f6f5f1;--card:#fff;--ink:#1f2421;--muted:#6b716c;--line:#dcdcd4;--acc:#2f6f4f;--acc2:#e7f1ec;--warn:#b5482f;--treat:#c98a1b;--treat2:#fbf1dd}
+  @media (prefers-color-scheme:dark){:root{--bg:#161917;--card:#20241f;--ink:#e8ebe7;--muted:#9aa29b;--line:#363c37;--acc:#6cc497;--acc2:#21362b;--warn:#e7836b;--treat:#e5b04f;--treat2:#3a301b}}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  main{max-width:1000px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:1.35rem;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:.92rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  label{font-size:.78rem;color:var(--muted);display:block;margin-bottom:3px}
+  input,select{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:.95rem}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{font:inherit;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  button.danger{color:var(--warn)}
+  button:disabled{opacity:.45;cursor:default}
+  .clock{font-variant-numeric:tabular-nums;font-size:2.4rem;font-weight:700;letter-spacing:.02em}
+  .status{font-size:.9rem;color:var(--muted)}
+  .arena{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:10px;max-width:520px;margin:14px auto 4px}
+  .zone{border:2px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;user-select:none;transition:background .1s,border-color .1s;background:var(--bg)}
+  .zone .k{display:inline-block;font-size:.72rem;border:1px solid var(--line);border-radius:5px;padding:0 6px;color:var(--muted);margin-bottom:4px}
+  .zone .nm{font-weight:600;font-size:.95rem}
+  .zone .t{font-variant-numeric:tabular-nums;font-size:1.25rem;font-weight:700;margin-top:4px}
+  .zone .e{font-size:.8rem;color:var(--muted)}
+  .zone.treated{border-color:var(--treat)}
+  .zone.active{background:var(--acc2);border-color:var(--acc)}
+  .zone.treated.active{background:var(--treat2);border-color:var(--treat)}
+  .a1{grid-column:2;grid-row:1}.a2{grid-column:3;grid-row:2}.a3{grid-column:2;grid-row:3}.a4{grid-column:1;grid-row:2}.c0{grid-column:2;grid-row:2}
+  .hint{font-size:.82rem;color:var(--muted);text-align:center}
+  table{width:100%;border-collapse:collapse;font-size:.84rem;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid var(--line);padding:6px 5px;text-align:right;white-space:nowrap}
+  th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+  .tablewrap{overflow-x:auto}
+  .msg{font-size:.85rem;color:var(--acc);min-height:1.2em}
+  .log{font-size:.78rem;color:var(--muted);max-height:90px;overflow-y:auto;font-family:ui-monospace,Consolas,monospace}
+  details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
+  kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:.8rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Four-Arm Olfactometer Timer</h1>
+  <p class="sub">A simple replacement for Olfa. Press <kbd>1</kbd>–<kbd>4</kbd> when the insect enters an arm and <kbd>0</kbd> when it returns to the centre. The tool records time spent and number of entries in each arm.</p>
+
+  <section class="card">
+    <div class="grid">
+      <div><label>Treatment / sample</label><input id="treat" placeholder="e.g. LA1777 headspace"></div>
+      <div><label>Replicate no.</label><input id="rep" type="number" min="1" value="1"></div>
+      <div><label>Duration (s)</label><input id="dur" type="number" min="10" value="600"></div>
+      <div><label>Treated arm</label>
+        <select id="treatedArm"><option value="1">Arm 1</option><option value="2">Arm 2</option><option value="3">Arm 3</option><option value="4">Arm 4</option></select></div>
+      <div><label>Insect / notes</label><input id="note" placeholder="e.g. mated female, 2 d old"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div class="clock" id="clock">10:00</div>
+        <div class="status" id="status">Ready. Release the insect in the centre, then press Start (or Space).</div>
+      </div>
+      <div class="row">
+        <button class="primary" id="startBtn">Start</button>
+        <button id="pauseBtn" disabled>Pause</button>
+        <button id="stopBtn" disabled>Stop &amp; save</button>
+        <button id="undoBtn" disabled>Undo last key</button>
+        <button class="danger" id="resetBtn">Discard</button>
+      </div>
+    </div>
+
+    <div class="arena" id="arena">
+      <div class="zone a1" data-z="1"><span class="k">1</span><div class="nm">Arm 1</div><div class="t">0.0 s</div><div class="e">0 entries</div></div>
+      <div class="zone a4" data-z="4"><span class="k">4</span><div class="nm">Arm 4</div><div class="t">0.0 s</div><div class="e">0 entries</div></div>
+      <div class="zone c0" data-z="0"><span class="k">0</span><div class="nm">Centre</div><div class="t">0.0 s</div><div class="e">no choice</div></div>
+      <div class="zone a2" data-z="2"><span class="k">2</span><div class="nm">Arm 2</div><div class="t">0.0 s</div><div class="e">0 entries</div></div>
+      <div class="zone a3" data-z="3"><span class="k">3</span><div class="nm">Arm 3</div><div class="t">0.0 s</div><div class="e">0 entries</div></div>
+    </div>
+    <p class="hint">You can also click or tap a zone. The treated arm has an amber border. Space = start/pause.</p>
+    <details><summary>Event log for this replicate</summary><div class="log" id="log"></div></details>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <strong>Saved replicates</strong>
+      <div class="row">
+        <button class="primary" id="csvBtn">Save as CSV</button>
+        <button id="copyBtn">Copy table for Excel</button>
+        <button class="danger" id="clearBtn">Clear all</button>
+      </div>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+    <p class="hint" style="text-align:left;margin-top:10px">Click "Save as CSV" to save a file that opens in Excel or R, or "Copy table for Excel" and paste with Ctrl+V. Results are kept in this browser between visits, but copy them after each session to be safe. Columns: time (s) and entries per arm, time treated vs mean of the 3 control arms, first arm chosen, and latency to first choice.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const zones=[0,1,2,3,4];
+  const STORE='olfa4-results-v1';
+  let state='idle';         // idle | running | paused | done
+  let elapsed=0;            // ms of running time before current segment
+  let segStart=0;           // performance.now() at last resume
+  let cur=0;                // current zone
+  let zoneStart=0;          // run-time (ms) when cur zone was entered
+  let time={0:0,1:0,2:0,3:0,4:0};
+  let entries={1:0,2:0,3:0,4:0};
+  let events=[];            // {t, z}
+  let firstArm='', firstLat='';
+  let tick=null;
+  let results=load();
+
+  function load(){try{const s=localStorage.getItem(STORE);return s?JSON.parse(s):[]}catch(e){return[]}}
+  function save(){try{localStorage.setItem(STORE,JSON.stringify(results))}catch(e){}}
+  function dur(){return Math.max(10,Number($('dur').value)||600)*1000}
+  function now(){return state==='running'?elapsed+(performance.now()-segStart):elapsed}
+  function treated(){return Number($('treatedArm').value)}
+  function fmt(ms){const s=Math.max(0,ms)/1000;const m=Math.floor(s/60);const r=Math.floor(s%60);return m+':'+String(r).padStart(2,'0')}
+
+  function liveTimes(){const t={...time};if(state!=='idle'){t[cur]+=Math.min(now(),dur())-zoneStart}return t}
+
+  function render(){
+    const t=liveTimes();const left=dur()-Math.min(now(),dur());
+    $('clock').textContent=fmt(state==='idle'?dur():left);
+    document.querySelectorAll('.zone').forEach(el=>{
+      const z=Number(el.dataset.z);
+      el.querySelector('.t').textContent=(t[z]/1000).toFixed(1)+' s';
+      if(z>0)el.querySelector('.e').textContent=entries[z]+(entries[z]===1?' entry':' entries');
+      el.classList.toggle('active',state!=='idle'&&z===cur);
+      el.classList.toggle('treated',z===treated());
+      if(z>0)el.querySelector('.nm').textContent='Arm '+z+(z===treated()?' (treated)':'');
+    });
+    $('startBtn').disabled=state==='running'||state==='done';
+    $('startBtn').textContent=state==='paused'?'Resume':'Start';
+    $('pauseBtn').disabled=state!=='running';
+    $('stopBtn').disabled=state==='idle';
+    $('undoBtn').disabled=!(state==='running'||state==='paused')||events.length===0;
+  }
+
+  function setZone(z){
+    if(state!=='running'||z===cur)return;
+    const t=now();
+    time[cur]+=t-zoneStart;
+    events.push({t,z,prev:cur,prevStart:zoneStart,first:firstArm===''});
+    if(z>0){entries[z]++;if(firstArm===''){firstArm=z;firstLat=(t/1000).toFixed(1)}}
+    cur=z;zoneStart=t;
+    logLine((t/1000).toFixed(1)+' s → '+(z===0?'Centre':'Arm '+z));
+    render();
+  }
+
+  function undo(){
+    const ev=events.pop();if(!ev)return;
+    const t=now();
+    // remove time added to prev zone at that switch; return to prev zone from its original start
+    time[ev.prev]-=(ev.t-ev.prevStart);
+    if(ev.z>0){entries[ev.z]--;if(ev.first){firstArm='';firstLat=''}}
+    cur=ev.prev;zoneStart=ev.prevStart;
+    logLine('undo');render();
+  }
+
+  function logLine(s){const d=document.createElement('div');d.textContent=s;$('log').prepend(d)}
+
+  function start(){
+    if(state==='idle'){reset(true);state='running';segStart=performance.now();$('status').textContent='Recording… press 1–4 for arms, 0 for centre.'}
+    else if(state==='paused'){state='running';segStart=performance.now();$('status').textContent='Recording…'}
+    else return;
+    tick=setInterval(()=>{if(now()>=dur())finish();else render()},100);
+    render();
+  }
+  function pause(){if(state!=='running')return;elapsed+=performance.now()-segStart;state='paused';clearInterval(tick);$('status').textContent='Paused.';render()}
+
+  function finish(){
+    if(state==='idle'||state==='done')return;
+    const end=Math.min(now(),dur());
+    if(state==='running')elapsed=end;
+    clearInterval(tick);
+    time[cur]+=end-zoneStart;zoneStart=end;
+    state='done';
+    const tr=treated();const ctrl=[1,2,3,4].filter(a=>a!==tr);
+    const r={
+      treatment:$('treat').value.trim()||'(unnamed)',rep:$('rep').value,note:$('note').value.trim(),
+      treatedArm:tr,duration:(end/1000).toFixed(1),
+      t1:(time[1]/1000).toFixed(1),t2:(time[2]/1000).toFixed(1),t3:(time[3]/1000).toFixed(1),t4:(time[4]/1000).toFixed(1),tc:(time[0]/1000).toFixed(1),
+      e1:entries[1],e2:entries[2],e3:entries[3],e4:entries[4],
+      tTreat:(time[tr]/1000).toFixed(1),
+      tCtrlMean:(ctrl.reduce((s,a)=>s+time[a],0)/3/1000).toFixed(1),
+      eTreat:entries[tr],eCtrlMean:(ctrl.reduce((s,a)=>s+entries[a],0)/3).toFixed(2),
+      firstArm:firstArm===''?'none':firstArm,firstChoice:firstArm===''?'no choice':(firstArm===tr?'treated':'control'),latency:firstLat===''?'':firstLat,
+      date:new Date().toLocaleString()
+    };
+    results.push(r);save();renderTable();
+    $('rep').value=Number($('rep').value||0)+1;
+    $('status').textContent='Saved replicate '+r.rep+'. Press Start for the next one.';
+    render();
+    setTimeout(()=>{if(state==='done'){state='idle';reset(true);render()}},50);
+  }
+
+  function reset(keepStatus){
+    clearInterval(tick);state='idle';elapsed=0;cur=0;zoneStart=0;
+    time={0:0,1:0,2:0,3:0,4:0};entries={1:0,2:0,3:0,4:0};events=[];firstArm='';firstLat='';
+    $('log').innerHTML='';
+    if(!keepStatus)$('status').textContent='Discarded. Ready.';
+    render();
+  }
+
+  const cols=[['treatment','Treatment'],['rep','Rep'],['treatedArm','Treated arm'],['duration','Duration (s)'],
+    ['t1','Arm1 (s)'],['t2','Arm2 (s)'],['t3','Arm3 (s)'],['t4','Arm4 (s)'],['tc','Centre (s)'],
+    ['e1','Arm1 entries'],['e2','Arm2 entries'],['e3','Arm3 entries'],['e4','Arm4 entries'],
+    ['tTreat','Treated time (s)'],['tCtrlMean','Mean control time (s)'],['eTreat','Treated entries'],['eCtrlMean','Mean control entries'],
+    ['firstArm','First arm'],['firstChoice','First choice'],['latency','Latency to 1st choice (s)'],['note','Notes'],['date','Date/time']];
+
+  function renderTable(){
+    $('tbl').querySelector('thead').innerHTML='<tr>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'<th></th></tr>';
+    const tb=$('tbl').querySelector('tbody');tb.innerHTML='';
+    results.forEach((r,i)=>{
+      const tr=document.createElement('tr');
+      cols.forEach(c=>{const td=document.createElement('td');td.textContent=r[c[0]]??'';tr.appendChild(td)});
+      const td=document.createElement('td');const b=document.createElement('button');b.textContent='✕';b.title='Delete row';b.style.padding='2px 8px';
+      b.onclick=()=>{results.splice(i,1);save();renderTable()};td.appendChild(b);tr.appendChild(td);tb.appendChild(tr);
+    });
+    if(!results.length)tb.innerHTML='<tr><td colspan="'+(cols.length+1)+'" style="text-align:left;color:var(--muted)">No replicates saved yet.</td></tr>';
+  }
+
+  function copyTable(){
+    const tsv=[cols.map(c=>c[1]).join('\t')].concat(results.map(r=>cols.map(c=>String(r[c[0]]??'').replace(/\t/g,' ')).join('\t'))).join('\n');
+    const done=()=>{$('msg').textContent='Copied '+results.length+' rows. Paste into Excel with Ctrl+V.'};
+    try{navigator.clipboard.writeText(tsv).then(done,()=>fallback(tsv,done))}catch(e){fallback(tsv,done)}
+  }
+  function fallback(text,done){
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');done()}catch(e){$('msg').textContent='Copy blocked. Select the table with the mouse and copy it.'}
+    ta.remove();
+  }
+
+  let clearArmed=false;
+  $('clearBtn').onclick=()=>{
+    if(!clearArmed){clearArmed=true;$('clearBtn').textContent='Click again to confirm';setTimeout(()=>{clearArmed=false;$('clearBtn').textContent='Clear all'},3000);return}
+    results=[];save();renderTable();clearArmed=false;$('clearBtn').textContent='Clear all';$('msg').textContent='All replicates cleared.';
+  };
+  $('startBtn').onclick=start;$('pauseBtn').onclick=pause;$('stopBtn').onclick=finish;
+  $('undoBtn').onclick=undo;$('resetBtn').onclick=()=>reset(false);$('copyBtn').onclick=copyTable;
+  $('csvBtn').onclick=()=>{
+    if(!results.length){$('msg').textContent='No replicates to save yet.';return}
+    const q=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+    const csv=[cols.map(c=>q(c[1])).join(',')].concat(results.map(r=>cols.map(c=>q(r[c[0]])).join(','))).join('\r\n');
+    const blob=new Blob(['\ufeff'+csv],{type:'text/csv'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    const d=new Date();a.download='olfactometer_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'.csv';
+    document.body.appendChild(a);a.click();a.remove();
+    $('msg').textContent='Saved '+results.length+' rows to your Downloads folder.';
+  };
+  $('treatedArm').onchange=render;$('dur').oninput=render;
+  document.querySelectorAll('.zone').forEach(el=>el.onclick=()=>setZone(Number(el.dataset.z)));
+  document.addEventListener('keydown',e=>{
+    if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+    const k=e.key;
+    if(k>='0'&&k<='4'){setZone(Number(k));e.preventDefault()}
+    else if(k===' '){e.preventDefault();state==='running'?pause():start()}
+    else if(k==='Backspace'){undo();e.preventDefault()}
+  });
+  renderTable();render();
+})();
+</script>
+</body>
+</html>
